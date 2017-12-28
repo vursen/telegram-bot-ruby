@@ -3,6 +3,7 @@ require 'inflecto'
 require 'logger'
 require 'json'
 require 'faraday'
+require 'faraday_middleware'
 
 require 'telegram/bot/types'
 require 'telegram/bot/exceptions'
