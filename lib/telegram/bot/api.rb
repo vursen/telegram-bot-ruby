@@ -111,7 +111,7 @@ module Telegram
       def conn
         @conn ||= Faraday.new(url: 'https://api.telegram.org') do |faraday|
           faraday.request :multipart
-          faraday.request :url_encoded
+          faraday.request :json
           faraday.adapter Telegram::Bot.configuration.adapter
         end
       end
