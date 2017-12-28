@@ -3,49 +3,15 @@ module Telegram
     class Api
       ENDPOINTS = %w(
         getUpdates setWebhook deleteWebhook getWebhookInfo getMe sendMessage
-        forwardMessage sendPhoto sendAudio sendDocument sendVideo sendVoice
-        sendVideoNote sendMediaGroup sendLocation editMessageLiveLocation
-        stopMessageLiveLocation sendVenue sendContact sendChatAction
-        getUserProfilePhotos getFile kickChatMember unbanChatMember
-        restrictChatMember promoteChatMember leaveChat getChat
-        getChatAdministrators exportChatInviteLink setChatPhoto deleteChatPhoto
-        setChatTitle setChatDescription pinChatMessage unpinChatMessage
-        getChatMembersCount getChatMember setChatStickerSet deleteChatStickerSet
-        answerCallbackQuery editMessageText editMessageCaption
-        editMessageReplyMarkup deleteMessage sendSticker getStickerSet
-        uploadStickerFile createNewStickerSet addStickerToSet
-        setStickerPositionInSet deleteStickerFromSet answerInlineQuery
-        sendInvoice answerShippingQuery answerPreCheckoutQuery
+        forwardMessage sendPhoto sendAudio sendDocument sendSticker sendVideo
+        sendVoice sendVideoNote sendLocation sendVenue sendContact
+        sendChatAction getUserProfilePhotos getFile kickChatMember
+        unbanChatMember leaveChat getChat getChatAdministrators
+        getChatMembersCount getChatMember answerCallbackQuery editMessageText
+        editMessageCaption editMessageReplyMarkup deleteMessage
+        answerInlineQuery sendInvoice answerShippingQuery answerPreCheckoutQuery
         sendGame setGameScore getGameHighScores
       ).freeze
-      REPLY_MARKUP_TYPES = [
-        Telegram::Bot::Types::ReplyKeyboardMarkup,
-        Telegram::Bot::Types::ReplyKeyboardRemove,
-        Telegram::Bot::Types::ForceReply,
-        Telegram::Bot::Types::InlineKeyboardMarkup
-      ].freeze
-      INLINE_QUERY_RESULT_TYPES = [
-        Telegram::Bot::Types::InlineQueryResultArticle,
-        Telegram::Bot::Types::InlineQueryResultPhoto,
-        Telegram::Bot::Types::InlineQueryResultGif,
-        Telegram::Bot::Types::InlineQueryResultMpeg4Gif,
-        Telegram::Bot::Types::InlineQueryResultVideo,
-        Telegram::Bot::Types::InlineQueryResultAudio,
-        Telegram::Bot::Types::InlineQueryResultVoice,
-        Telegram::Bot::Types::InlineQueryResultDocument,
-        Telegram::Bot::Types::InlineQueryResultLocation,
-        Telegram::Bot::Types::InlineQueryResultVenue,
-        Telegram::Bot::Types::InlineQueryResultContact,
-        Telegram::Bot::Types::InlineQueryResultGame,
-        Telegram::Bot::Types::InlineQueryResultCachedPhoto,
-        Telegram::Bot::Types::InlineQueryResultCachedGif,
-        Telegram::Bot::Types::InlineQueryResultCachedMpeg4Gif,
-        Telegram::Bot::Types::InlineQueryResultCachedSticker,
-        Telegram::Bot::Types::InlineQueryResultCachedDocument,
-        Telegram::Bot::Types::InlineQueryResultCachedVideo,
-        Telegram::Bot::Types::InlineQueryResultCachedVoice,
-        Telegram::Bot::Types::InlineQueryResultCachedAudio
-      ].freeze
 
       attr_reader :token
 
@@ -68,7 +34,7 @@ module Telegram
       end
 
       def call(endpoint, raw_params = {})
-        params = build_params(raw_params)
+        params = serialize_params(raw_params)
         response = conn.post("/bot#{token}/#{endpoint}", params)
         if response.status == 200
           JSON.parse(response.body)
@@ -80,26 +46,23 @@ module Telegram
 
       private
 
-      def build_params(h)
+      def serialize_params(h)
         h.each_with_object({}) do |(key, value), params|
-          params[key] = sanitize_value(value)
+          params[key] =
+            if value.is_a?(Array)
+              value.map { |v| serialize_value(v) }
+            else
+              serialize_value(value)
+            end
         end
       end
 
-      def sanitize_value(value)
-        jsonify_inline_query_results(jsonify_reply_markup(value))
-      end
-
-      def jsonify_reply_markup(value)
-        return value unless REPLY_MARKUP_TYPES.include?(value.class)
-        value.to_compact_hash.to_json
-      end
-
-      def jsonify_inline_query_results(value)
-        return value unless
-          value.is_a?(Array) &&
-          value.all? { |i| INLINE_QUERY_RESULT_TYPES.include?(i.class) }
-        value.map { |i| i.to_compact_hash.select { |_, v| v } }.to_json
+      def serialize_value(value)
+        if value.is_a?(Types::Base)
+          value.to_compact_hash
+        else
+          value
+        end
       end
 
       def camelize(method_name)
